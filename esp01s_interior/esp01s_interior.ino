@@ -13,7 +13,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <espnow.h>
-#include <DHtesp.h>
+#include <DHT.h>
 
 #include "config.h"
 #include "secrets.h"
@@ -21,7 +21,7 @@
 // ============================================================================
 // Global Objects
 // ============================================================================
-DHtesp dht;
+DHT dht(DHT_PIN, DHT22);
 
 // ============================================================================
 // Data Structure for ESP-NOW
@@ -151,10 +151,10 @@ void loop() {
  * Initialize DHT22 sensor
  */
 bool initDHT() {
-  dht.setup(DHT_PIN, DHtesp::DHT22);
+  dht.begin();
+  delay(2000);  // DHT22 needs 2 seconds to stabilize
 
-  // Test read
-  float temp = dht.getTemperature();
+  float temp = dht.readTemperature();
 
   if (isnan(temp)) {
     Serial.println(F("[ERROR] DHT22 not responding"));
@@ -170,8 +170,8 @@ bool initDHT() {
  */
 void readSensors() {
   // Read DHT22
-  float temp = dht.getTemperature();
-  float humidity = dht.getHumidity();
+  float temp = dht.readTemperature();
+  float humidity = dht.readHumidity();
 
   if (isnan(temp) || isnan(humidity)) {
     if (DEBUG_DHT) {

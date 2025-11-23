@@ -32,11 +32,11 @@ TouchEvent TouchHandler::getEvent() {
 
   TouchEvent event;
 
-  // Check each display for touch
-  for (uint8_t i = 0; i < 3; i++) {
-    // Read IRQ pins to detect touch
-    uint8_t irqPin[] = {TOUCH_1_IRQ, TOUCH_2_IRQ, TOUCH_3_IRQ};
+  // Static array for efficiency - avoid re-declaring every call
+  static const uint8_t irqPin[] = {TOUCH_1_IRQ, TOUCH_2_IRQ, TOUCH_3_IRQ};
 
+  // Check each display for touch
+  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     if (digitalRead(irqPin[i]) == LOW) {  // Touch active
       event = readTouch(i);
       event.display = i;
@@ -53,17 +53,33 @@ TouchEvent TouchHandler::readTouch(uint8_t display) {
   TouchEvent event;
   event.display = display;
 
+  // CRITICAL: Validate bounds immediately
+  if (display >= DISPLAY_COUNT) {
+    Serial.print(F("[ERROR] Invalid display number: "));
+    Serial.println(display);
+    return event;  // Return empty event
+  }
+
   // Select the appropriate CS pin
-  uint8_t csPin[] = {TOUCH_1_CS, TOUCH_2_CS, TOUCH_3_CS};
+  static const uint8_t csPin[] = {TOUCH_1_CS, TOUCH_2_CS, TOUCH_3_CS};
   digitalWrite(csPin[display], LOW);
+  delayMicroseconds(10);
 
-  delay(1);
+  // Read raw coordinates from XPT2046 via SPI
+  SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0));
 
-  // Read raw coordinates from XPT2046
-  // This is simplified - full implementation would use SPI communication
-  int16_t rawX = 0, rawY = 0;
+  // Read X coordinate
+  SPI.write(0x90);  // X position command
+  int16_t rawX = SPI.transfer16(0x00) >> 3;
 
-  // TODO: Implement proper XPT2046 SPI communication
+  delayMicroseconds(10);
+
+  // Read Y coordinate
+  SPI.write(0xD0);  // Y position command
+  int16_t rawY = SPI.transfer16(0x00) >> 3;
+
+  SPI.endTransaction();
+  digitalWrite(csPin[display], HIGH);
 
   // Convert to display coordinates
   calibrateCoordinates(display, rawX, rawY);
@@ -71,13 +87,15 @@ TouchEvent TouchHandler::readTouch(uint8_t display) {
   event.x = rawX;
   event.y = rawY;
 
-  digitalWrite(csPin[display], HIGH);
-
   return event;
 }
 
 void TouchHandler::calibrateCoordinates(uint8_t display, int16_t& x, int16_t& y) {
-  if (display >= 3) return;
+  if (display >= DISPLAY_COUNT) {
+    Serial.print(F("[ERROR] Invalid display in calibrate: "));
+    Serial.println(display);
+    return;
+  }
 
   CalibrationData& cal = calib[display];
 
@@ -93,7 +111,7 @@ void TouchHandler::calibrateCoordinates(uint8_t display, int16_t& x, int16_t& y)
 }
 
 void TouchHandler::calibrate(uint8_t display) {
-  if (display >= 3) return;
+  if (display >= DISPLAY_COUNT) return;
 
   Serial.print(F("[CALIBRATE] Touch display "));
   Serial.print(display);

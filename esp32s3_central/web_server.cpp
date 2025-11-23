@@ -14,6 +14,9 @@
 // Static instance for lambda callbacks
 static WebServer* webServerInstance = nullptr;
 
+// CRITICAL: Authentication token (should be from config in production)
+const char* WebServer::ADMIN_TOKEN = "weather_station_2025";
+
 WebServer::WebServer(uint16_t port, uint16_t wsPort)
     : server(nullptr), ws(nullptr), httpPort(port), wsPort(wsPort),
       running(false), wsClientCount(0),
@@ -170,7 +173,11 @@ void WebServer::setupAPIEndpoints() {
     });
 
     // System Restart
-    server->on("/api/system/restart", HTTP_POST, [](AsyncWebServerRequest* request) {
+    server->on("/api/system/restart", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        if (!isAuthenticated(request)) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
         request->send(200, "application/json", "{\"success\":true,\"message\":\"Restarting...\"}");
         delay(1000);
         ESP.restart();
@@ -187,6 +194,10 @@ void WebServer::setupAPIEndpoints() {
 
     // Configuration Save (WiFi)
     server->on("/api/config/wifi", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        if (!isAuthenticated(request)) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
         request->onData([this](AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
             handleAPIConfigSave(r, data, len, index, total);
         });
@@ -194,6 +205,10 @@ void WebServer::setupAPIEndpoints() {
 
     // OTA Upload endpoint
     server->on("/api/ota/upload", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        if (!isAuthenticated(request)) {
+            request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+            return;
+        }
         request->send(200);
     }, [this](AsyncWebServerRequest* request, const String& filename, size_t index, uint8_t* data, size_t len, bool final) {
         if (otaHandler) {
@@ -212,10 +227,6 @@ void WebServer::setupAPIEndpoints() {
     });
 
     Serial.println(F("[OK] API endpoints registered"));
-}
-
-void WebServer::setupWebSocket() {
-    // Already defined above, this is duplicate - should be removed
 }
 
 void WebServer::onWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
@@ -240,13 +251,12 @@ void WebServer::onWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* c
 
     } else if (type == WS_EVT_DATA) {
         // Parse incoming message
+        // CRITICAL: Use String directly instead of malloc for exception safety
         if (len > 0) {
-            char* payload = (char*)malloc(len + 1);
-            memcpy(payload, data, len);
-            payload[len] = '\0';
-
-            handleWebSocketMessage(String(payload));
-            free(payload);
+            String payload((char*)data, len);
+            if (!payload.isEmpty()) {
+                handleWebSocketMessage(payload);
+            }
         }
     }
 }
@@ -384,8 +394,30 @@ void WebServer::handleAPIConfigSave(AsyncWebServerRequest* request, uint8_t* dat
 }
 
 bool WebServer::isAuthenticated(AsyncWebServerRequest* request) {
-    // Check Basic Auth header
-    // For now, allow all access (would add proper auth in production)
+    // CRITICAL: Check authentication token in header
+    if (!request->hasHeader("Authorization")) {
+        Serial.println(F("[SECURITY] Unauthorized API access - no auth header"));
+        return false;
+    }
+
+    String authHeader = request->getHeader("Authorization")->value();
+
+    // Check Bearer token format: "Bearer <token>"
+    if (!authHeader.startsWith("Bearer ")) {
+        Serial.println(F("[SECURITY] Invalid auth header format"));
+        return false;
+    }
+
+    // Extract token
+    String providedToken = authHeader.substring(7);  // Remove "Bearer "
+
+    // Compare with stored token
+    if (strcmp(providedToken.c_str(), ADMIN_TOKEN) != 0) {
+        Serial.println(F("[SECURITY] Invalid authentication token"));
+        return false;
+    }
+
+    Serial.println(F("[SECURITY] API access authenticated"));
     return true;
 }
 

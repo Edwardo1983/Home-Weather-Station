@@ -12,6 +12,9 @@
 /**
  * Handles OTA firmware updates
  */
+#define MAX_FIRMWARE_SIZE (4 * 1024 * 1024)  // 4MB max
+#define FIRMWARE_MAGIC 0xE9  // ESP32 magic byte
+
 class OTAHandler {
 public:
     OTAHandler();

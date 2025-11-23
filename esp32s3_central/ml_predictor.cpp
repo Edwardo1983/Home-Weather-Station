@@ -45,7 +45,7 @@ int MLPredictor::calculatePressureTrend() {
   if (historyFilled < 12) return 0;  // Not enough data
 
   // Compare current pressure with 1 hour ago
-  float currentPressure = history[historyIndex].pressure;
+  float currentPressure = history[(historyIndex - 1 + 144) % 144].pressure;
   float pressureHourAgo = history[(historyIndex - 12 + 144) % 144].pressure;
 
   float delta = currentPressure - pressureHourAgo;
@@ -59,7 +59,7 @@ int MLPredictor::calculatePressureTrend() {
 int MLPredictor::calculateTemperatureTrend() {
   if (historyFilled < 6) return 0;
 
-  float currentTemp = history[historyIndex].temperature;
+  float currentTemp = history[(historyIndex - 1 + 144) % 144].temperature;
   float tempBefore = history[(historyIndex - 6 + 144) % 144].temperature;
 
   float delta = currentTemp - tempBefore;

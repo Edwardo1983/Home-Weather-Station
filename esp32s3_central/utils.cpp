@@ -98,6 +98,12 @@ float lerp(float a, float b, float t) {
 }
 
 float mapRange(float value, float inMin, float inMax, float outMin, float outMax) {
+  // Guard against division by zero
+  if (inMax == inMin) {
+    // If input range is zero, return midpoint of output range
+    return (outMin + outMax) / 2.0f;
+  }
+
   float t = (value - inMin) / (inMax - inMin);
   return outMin + (outMax - outMin) * t;
 }

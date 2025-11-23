@@ -12,6 +12,17 @@
 #define MAX30102_RLED 0x0D
 #define MAX30102_FIFODATA 0x07
 
+// CRITICAL: Safe I2C write macro with error checking
+#define I2C_WRITE(addr, reg, val) do { \
+  Wire.beginTransmission(addr); \
+  Wire.write(reg); \
+  Wire.write(val); \
+  if (Wire.endTransmission() != 0) { \
+    Serial.println(F("[ERROR] I2C write failed")); \
+    return false; \
+  } \
+} while(0)
+
 SensorManager::SensorManager()
   : bme680Ready(false), max30102Ready(false), heartRateEnabled(false),
     bufferLength(0), spo2(0), validSPO2(0), heartRate(0), validHeartRate(0) {}
@@ -97,34 +108,22 @@ bool SensorManager::initMAX30102() {
   // Check if MAX30102 responds
   Wire.beginTransmission(MAX30102_ADDRESS);
   if (Wire.endTransmission() != 0) {
+    Serial.println(F("[ERROR] MAX30102 not responding"));
     return false;
   }
 
   // Reset MAX30102
-  Wire.beginTransmission(MAX30102_ADDRESS);
-  Wire.write(0x09);  // MODE_CONFIG
-  Wire.write(0x40);  // Reset
-  Wire.endTransmission();
-
+  I2C_WRITE(MAX30102_ADDRESS, 0x09, 0x40);  // MODE_CONFIG, Reset
   delay(100);
 
   // Configure for SpO2/HR mode
-  Wire.beginTransmission(MAX30102_ADDRESS);
-  Wire.write(0x09);  // MODE_CONFIG
-  Wire.write(0x03);  // SpO2 mode
-  Wire.endTransmission();
+  I2C_WRITE(MAX30102_ADDRESS, 0x09, 0x03);  // MODE_CONFIG, SpO2 mode
 
   // Set LED currents
-  Wire.beginTransmission(MAX30102_ADDRESS);
-  Wire.write(MAX30102_IRLED);
-  Wire.write(MAX30102_LED_CURRENT);
-  Wire.endTransmission();
+  I2C_WRITE(MAX30102_ADDRESS, MAX30102_IRLED, MAX30102_LED_CURRENT);
+  I2C_WRITE(MAX30102_ADDRESS, MAX30102_RLED, MAX30102_LED_CURRENT);
 
-  Wire.beginTransmission(MAX30102_ADDRESS);
-  Wire.write(MAX30102_RLED);
-  Wire.write(MAX30102_LED_CURRENT);
-  Wire.endTransmission();
-
+  Serial.println(F("[OK] MAX30102 configured successfully"));
   return true;
 }
 
@@ -135,10 +134,7 @@ void SensorManager::updateHeartRate() {
 }
 
 void SensorManager::readMAX30102() {
-  // Simplified heart rate reading
-  // Full implementation would need SpO2/HR algorithm
-  // This is a placeholder structure
-
+  // Read heart rate and SpO2 from MAX30102
   Wire.beginTransmission(MAX30102_ADDRESS);
   Wire.write(MAX30102_FIFODATA);
   Wire.endTransmission();
@@ -149,7 +145,40 @@ void SensorManager::readMAX30102() {
     uint32_t red = ((uint32_t)Wire.read() << 16) | ((uint32_t)Wire.read() << 8) | Wire.read();
     uint32_t ir = ((uint32_t)Wire.read() << 16) | ((uint32_t)Wire.read() << 8) | Wire.read();
 
-    // TODO: Implement proper SpO2 and HR calculation algorithm
-    lastHeartRateData.isValid = false;
+    // Basic heart rate calculation
+    // Simple threshold-based peak detection
+    if (ir > 50000) {  // Ensure valid finger contact
+      // Calculate heart rate from IR LED signal
+      // This is simplified - full algorithm uses FFT
+
+      // Simple peak detection (using member variables for proper state management)
+      if (ir > lastIR + 5000 && lastIR > 50000) {
+        unsigned long now = millis();
+        if (lastPeakTime > 0) {
+          unsigned long interval = now - lastPeakTime;
+          if (interval > 300 && interval < 2000) {  // 30-200 bpm range
+            heartRate = 60000 / interval;
+            validHeartRate = 1;
+          }
+        }
+        lastPeakTime = now;
+      }
+      lastIR = ir;
+
+      // Calculate SpO2 from ratio
+      // Typical formula: SpO2 = 110 - 25 * (Red/IR ratio)
+      if (ir > 0) {
+        float ratio = (float)red / ir;
+        spo2 = (uint8_t)(110 - 25 * ratio);
+        if (spo2 > 100) spo2 = 100;
+        if (spo2 > 95) validSPO2 = 1;
+      }
+
+      lastHeartRateData.heartRate = heartRate;
+      lastHeartRateData.spo2 = spo2;
+      lastHeartRateData.isValid = (validHeartRate && validSPO2);
+    } else {
+      lastHeartRateData.isValid = false;
+    }
   }
 }

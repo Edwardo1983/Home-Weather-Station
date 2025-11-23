@@ -25,6 +25,8 @@ struct TouchEvent {
 /**
  * Manages XPT2046 touch input from 3 displays
  */
+#define DISPLAY_COUNT 3
+
 class TouchHandler {
 public:
   TouchHandler();

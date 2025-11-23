@@ -17,8 +17,8 @@
 // ============================================================================
 // I2C Configuration
 // ============================================================================
-#define I2C_SDA GPIO_NUM_0  // GPIO 0 (D3)
-#define I2C_SCL GPIO_NUM_2  // GPIO 2 (D4)
+#define I2C_SDA 0  // GPIO 0 (D3) - use plain GPIO number for ESP8266
+#define I2C_SCL 2  // GPIO 2 (D4) - use plain GPIO number for ESP8266
 #define I2C_FREQ 400000     // 400kHz
 
 // ============================================================================

@@ -81,6 +81,9 @@ private:
     class ConfigManager* configMgr;
     class OTAHandler* otaHandler;
 
+    // CRITICAL: Authentication token
+    static const char* ADMIN_TOKEN;  // Define in cpp as hardcoded or from config
+
     // =================================================================
     // HTTP Request Handlers
     // =================================================================

@@ -114,6 +114,19 @@ void setup() {
   Serial.println(F("ESP32-S3 N16R8"));
   Serial.println(F("========================================\n"));
 
+  // CRITICAL: Initialize watchdog timer - 15 second timeout
+  esp_task_wdt_init(15, true);  // Enable panic on timeout
+  esp_task_wdt_add(xTaskGetCurrentTaskHandle());
+  Serial.println(F("[OK] Watchdog timer initialized (15s timeout)"));
+
+  // Check reset reason
+  esp_reset_reason_t resetReason = esp_reset_reason();
+  if (resetReason == ESP_RST_BROWNOUT) {
+    Serial.println(F("[WARNING] Reset due to brownout - power supply unstable!"));
+  } else if (resetReason == ESP_RST_TASK_WDT) {
+    Serial.println(F("[WARNING] Previous reset due to watchdog timeout!"));
+  }
+
   // Initialize I2C for sensors
   Wire.begin(I2C_SDA, I2C_SCL, I2C_FREQ);
   Serial.println(F("[INIT] I2C bus initialized"));
@@ -172,6 +185,13 @@ void setup() {
     if (espnowReceiver.begin()) {
       systemState.espnowReady = true;
       Serial.println(F("[OK] ESP-NOW initialized"));
+
+      // Register ESP-NOW peers
+      uint8_t interiorMac[] = ESPNOW_MAC_INTERIOR;
+      uint8_t exteriorMac[] = ESPNOW_MAC_EXTERIOR;
+      espnowReceiver.addPeer(interiorMac);
+      espnowReceiver.addPeer(exteriorMac);
+      Serial.println(F("[OK] ESP-NOW peers registered"));
     } else {
       Serial.println(F("[ERROR] ESP-NOW initialization failed"));
     }
@@ -202,6 +222,9 @@ void setup() {
 // ============================================================================
 void loop() {
   unsigned long now = millis();
+
+  // CRITICAL: Kick watchdog timer
+  esp_task_wdt_reset();
 
   // Handle screen timeout
   handleScreenTimeout(now);
@@ -257,7 +280,6 @@ void loop() {
     handleTouchInput();
   }
 
-  // Brief delay to prevent watchdog timeout
   yield();
 }
 
@@ -266,30 +288,38 @@ void loop() {
 // ============================================================================
 
 /**
- * Initialize WiFi connection
+ * Initialize WiFi connection (non-blocking with event handler)
  */
 void initWiFi() {
+  // CRITICAL: Use event-based connection instead of blocking delay loop
   WiFi.mode(WIFI_STA);
+
+  // Register WiFi event handler
+  WiFi.onEvent([](WiFiEvent_t event) {
+    switch(event) {
+      case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+        Serial.println(F("[WiFi] Connected to access point"));
+        break;
+      case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+        systemState.wifiConnected = true;
+        Serial.println(F("[OK] WiFi connected"));
+        Serial.print(F("IP: "));
+        Serial.println(WiFi.localIP());
+        // Initialize weather API once WiFi is ready
+        weatherAPI.setAPIKeys(OPENWEATHERMAP_API_KEY, TOMORROW_IO_API_KEY);
+        break;
+      case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+        systemState.wifiConnected = false;
+        Serial.println(F("[WARNING] WiFi disconnected"));
+        break;
+      default:
+        break;
+    }
+  });
+
+  // Start WiFi connection in background (non-blocking)
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    systemState.wifiConnected = true;
-    Serial.println(F("\n[OK] WiFi connected"));
-    Serial.print(F("IP: "));
-    Serial.println(WiFi.localIP());
-
-    // Initialize weather API
-    weatherAPI.setAPIKeys(OPENWEATHERMAP_API_KEY, TOMORROW_IO_API_KEY);
-  } else {
-    Serial.println(F("\n[WARNING] WiFi connection failed"));
-  }
+  Serial.println(F("[INIT] WiFi connecting in background..."));
 }
 
 /**

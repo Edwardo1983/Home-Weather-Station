@@ -15,6 +15,13 @@ bool OTAHandler::begin() {
 
 bool OTAHandler::handleFirmwareUpload(const String& filename, size_t index, uint8_t* data, size_t len, bool final) {
     if (!updating && index == 0) {
+        // CRITICAL: Validate firmware BEFORE starting update
+        if (!validateFirmware(data, len)) {
+            lastError = "Firmware validation failed";
+            Serial.println(F("[ERROR] Invalid firmware - validation failed"));
+            return false;
+        }
+
         // Start of upload
         if (!startUpdate(0)) {  // Size will be determined during upload
             return false;
@@ -27,12 +34,20 @@ bool OTAHandler::handleFirmwareUpload(const String& filename, size_t index, uint
         return false;
     }
 
+    // CRITICAL: Validate firmware size doesn't exceed limits
+    totalSize += len;
+    if (totalSize > MAX_FIRMWARE_SIZE) {
+        lastError = "Firmware too large";
+        Serial.println(F("[ERROR] Firmware exceeds maximum size (4MB)"));
+        Update.abort();
+        updating = false;
+        return false;
+    }
+
     // Write data chunk
     if (!writeData(data, len)) {
         return false;
     }
-
-    progress = (index + len) * 100 / totalSize;
 
     if (final) {
         // End of upload
@@ -97,14 +112,25 @@ bool OTAHandler::finishUpdate() {
 }
 
 bool OTAHandler::validateFirmware(const uint8_t* data, size_t len) {
-    // Basic validation - could be enhanced with signature checks
-    if (len < 16) return false;
+    // CRITICAL: Validate firmware file structure and magic bytes
 
-    // Check ESP32 image header
-    if (data[0] != 0xe9) {
-        Serial.println(F("[WARNING] Invalid ESP32 image header"));
+    // Minimum firmware size check
+    if (len < 512) {
+        Serial.println(F("[ERROR] Firmware too small - minimum 512 bytes required"));
         return false;
     }
+
+    // Check ESP32 magic byte (first byte of bootloader)
+    if (data[0] != FIRMWARE_MAGIC) {
+        Serial.print(F("[ERROR] Invalid firmware magic byte: 0x"));
+        Serial.println(data[0], HEX);
+        return false;
+    }
+
+    // Log firmware validation success
+    Serial.print(F("[OK] Firmware validated: "));
+    Serial.print(len);
+    Serial.println(F(" bytes"));
 
     return true;
 }

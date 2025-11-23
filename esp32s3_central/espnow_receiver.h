@@ -14,6 +14,8 @@
  * Data structure for ESP-NOW communication
  * Max 250 bytes per packet
  */
+#define ESPNOW_PACKET_SIZE sizeof(ESPNowData)
+
 typedef struct {
   char nodeType[16];      // "interior" or "exterior"
   float temperature = 0;

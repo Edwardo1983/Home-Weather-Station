@@ -6,43 +6,65 @@
 #include "display_manager.h"
 #include <TFT_eSPI.h>
 
+// Create 3 TFT instances for each display
+TFT_eSPI tft1 = TFT_eSPI();
+TFT_eSPI tft2 = TFT_eSPI();
+TFT_eSPI tft3 = TFT_eSPI();
+
 DisplayManager::DisplayManager()
   : currentDisplay(0), initialized(false), backlightBrightness(200) {
-  for (int i = 0; i < 3; i++) {
-    tft[i] = nullptr;
-  }
+  tft[0] = &tft1;
+  tft[1] = &tft2;
+  tft[2] = &tft3;
 }
 
 DisplayManager::~DisplayManager() {
-  for (int i = 0; i < 3; i++) {
-    if (tft[i] != nullptr) {
-      delete tft[i];
-    }
-  }
+  // Note: Static TFT instances - don't delete
 }
 
 bool DisplayManager::begin() {
   // Initialize backlight first
   initBacklight();
 
-  // Note: TFT_eSPI is complex and requires User_Setup.h configuration
-  // For now, we provide the structure - actual initialization requires
-  // proper TFT_eSPI library setup with pin definitions
+  // Initialize each display with its CS pin
+  for (int i = 0; i < 3; i++) {
+    selectDisplay(i);
+    tft[i]->init();
+    tft[i]->setRotation(DISPLAY_ROTATION);
+    tft[i]->fillScreen(TFT_BLACK);
+    delay(100);
+  }
 
-  Serial.println("[DISPLAY] DisplayManager initialized");
+  // Select first display by default
+  selectDisplay(0);
+
+  Serial.println("[DISPLAY] All 3 displays initialized");
   initialized = true;
   return true;
 }
 
 void DisplayManager::selectDisplay(uint8_t displayNum) {
   if (displayNum > 2) return;
+
+  // Deselect all displays
+  digitalWrite(DISPLAY_1_CS, HIGH);
+  digitalWrite(DISPLAY_2_CS, HIGH);
+  digitalWrite(DISPLAY_3_CS, HIGH);
+
+  // Select requested display
   currentDisplay = displayNum;
+  switch (displayNum) {
+    case 0: digitalWrite(DISPLAY_1_CS, LOW); break;
+    case 1: digitalWrite(DISPLAY_2_CS, LOW); break;
+    case 2: digitalWrite(DISPLAY_3_CS, LOW); break;
+  }
+
+  delayMicroseconds(10);  // CS setup time
 }
 
 void DisplayManager::clear(uint16_t color) {
-  if (!initialized) return;
-  // Implementation depends on TFT_eSPI
-  // Typically: tft[currentDisplay]->fillScreen(color);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->fillScreen(color);
 }
 
 void DisplayManager::clearAll(uint16_t color) {
@@ -53,68 +75,68 @@ void DisplayManager::clearAll(uint16_t color) {
 }
 
 void DisplayManager::setTextColor(uint16_t fg, uint16_t bg) {
-  if (!initialized) return;
-  // tft[currentDisplay]->setTextColor(fg, bg);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->setTextColor(fg, bg);
 }
 
 void DisplayManager::setTextSize(uint8_t size) {
-  if (!initialized) return;
-  // tft[currentDisplay]->setTextSize(size);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->setTextSize(size);
 }
 
 void DisplayManager::setCursor(int16_t x, int16_t y) {
-  if (!initialized) return;
-  // tft[currentDisplay]->setCursor(x, y);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->setCursor(x, y);
 }
 
 void DisplayManager::print(const char* str) {
-  if (!initialized) return;
-  // tft[currentDisplay]->print(str);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->print(str);
 }
 
 void DisplayManager::print(const String& str) {
-  if (!initialized) return;
-  // tft[currentDisplay]->print(str);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->print(str);
 }
 
 void DisplayManager::print(float val, uint8_t decimals) {
-  if (!initialized) return;
-  // tft[currentDisplay]->print(val, decimals);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->print(val, decimals);
 }
 
 void DisplayManager::print(int val) {
-  if (!initialized) return;
-  // tft[currentDisplay]->print(val);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->print(val);
 }
 
 void DisplayManager::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color) {
-  if (!initialized) return;
-  // tft[currentDisplay]->drawLine(x0, y0, x1, y1, color);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->drawLine(x0, y0, x1, y1, color);
 }
 
 void DisplayManager::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
-  if (!initialized) return;
-  // tft[currentDisplay]->fillRect(x, y, w, h, color);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->fillRect(x, y, w, h, color);
 }
 
 void DisplayManager::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
-  if (!initialized) return;
-  // tft[currentDisplay]->drawRect(x, y, w, h, color);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->drawRect(x, y, w, h, color);
 }
 
 void DisplayManager::drawCircle(int16_t x, int16_t y, int16_t r, uint16_t color) {
-  if (!initialized) return;
-  // tft[currentDisplay]->drawCircle(x, y, r, color);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->drawCircle(x, y, r, color);
 }
 
 void DisplayManager::fillCircle(int16_t x, int16_t y, int16_t r, uint16_t color) {
-  if (!initialized) return;
-  // tft[currentDisplay]->fillCircle(x, y, r, color);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->fillCircle(x, y, r, color);
 }
 
 void DisplayManager::drawPixel(int16_t x, int16_t y, uint16_t color) {
-  if (!initialized) return;
-  // tft[currentDisplay]->drawPixel(x, y, color);
+  if (!initialized || tft[currentDisplay] == nullptr) return;
+  tft[currentDisplay]->drawPixel(x, y, color);
 }
 
 void DisplayManager::setBacklight(uint8_t brightness) {

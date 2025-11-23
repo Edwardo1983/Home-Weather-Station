@@ -61,10 +61,22 @@ void ESPNowReceiver::requestUpdate() {
 
 void ESPNowReceiver::onDataReceive(const uint8_t* mac, const uint8_t* data, int len) {
   if (espnowInstance == nullptr) return;
-  if (len < sizeof(ESPNowData)) return;
+
+  // CRITICAL: Validate packet size BEFORE memcpy
+  if (len != sizeof(ESPNowData)) {
+    Serial.print(F("[ERROR] Invalid ESP-NOW packet size: "));
+    Serial.print(len);
+    Serial.print(F(" (expected "));
+    Serial.print(sizeof(ESPNowData));
+    Serial.println(F(")"));
+    return;  // Reject invalid packet
+  }
 
   ESPNowData receivedData;
-  memcpy(&receivedData, data, sizeof(ESPNowData));
+  memcpy(&receivedData, data, len);
+
+  // Ensure null-terminated strings to prevent buffer overrun in strcmp()
+  receivedData.nodeType[sizeof(receivedData.nodeType) - 1] = '\0';
 
   // Determine which node sent data
   if (strcmp(receivedData.nodeType, "interior") == 0) {
@@ -91,6 +103,9 @@ void ESPNowReceiver::onDataReceive(const uint8_t* mac, const uint8_t* data, int 
       Serial.print(receivedData.pressure);
       Serial.println(F(" hPa"));
     }
+  } else {
+    Serial.print(F("[ERROR] Unknown node type: "));
+    Serial.println(receivedData.nodeType);
   }
 }
 

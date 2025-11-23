@@ -99,6 +99,11 @@ private:
   int32_t heartRate;
   int8_t validHeartRate;
 
+  // CRITICAL: Heart rate calculation state (moved from statics in readMAX30102)
+  uint32_t lastIR = 0;
+  uint8_t peakCount = 0;
+  unsigned long lastPeakTime = 0;
+
   /**
    * Calculate IAQ from BME680 raw data
    */
