@@ -1,0 +1,201 @@
+# Home Weather Station - ESP32-S3 Project Rules
+
+## Project Overview
+Multi-node environmental monitoring system with ML-based weather prediction.
+- **Central Node**: ESP32-S3 N16R8 (16MB Flash, 8MB PSRAM)
+- **Interior Node**: ESP-01S + DHT22 (secondary room)
+- **Exterior Node**: ESP-01S + TCA9548A + AHT20/BMP280 + BH1750
+
+## Platform & Compilation
+- **Board**: ESP32-S3 DevKitC (esp32:esp32:esp32s3)
+- **ESP-01S Board**: Generic ESP8266 Module (esp8266:esp8266:generic)
+- **Framework**: Arduino
+- **Compile ESP32-S3**: `arduino-cli compile --fqbn esp32:esp32:esp32s3 ./esp32s3_central`
+- **Compile ESP-01S**: `arduino-cli compile --fqbn esp8266:esp8266:generic ./esp01s_interior`
+- **Always verify compilation before presenting code as final**
+
+## Project Structure
+```
+home_weather_station/
+├── esp32s3_central/
+│   ├── esp32s3_central.ino          # Main entry point
+│   ├── config.h                      # WiFi, API keys, pin definitions
+│   ├── secrets.h                     # Credentials (gitignored)
+│   ├── secrets_template.h            # Template for secrets.h
+│   ├── display_manager.h/.cpp        # TFT_eSPI multi-display control
+│   ├── sensor_manager.h/.cpp         # BME680, MAX30102 local sensors
+│   ├── espnow_receiver.h/.cpp        # ESP-NOW data reception from nodes
+│   ├── weather_api.h/.cpp            # OpenWeatherMap, Tomorrow.io integration
+│   ├── ml_predictor.h/.cpp           # TinyML weather prediction
+│   ├── data_logger.h/.cpp            # SD card logging for ML training
+│   ├── touch_handler.h/.cpp          # XPT2046 touch input
+│   ├── ui_screens.h/.cpp             # UI layouts for 3 displays
+│   └── utils.h/.cpp                  # Helper functions
+├── esp01s_interior/
+│   ├── esp01s_interior.ino           # DHT22 node firmware
+│   ├── config.h                      # Node configuration
+│   └── secrets.h                     # WiFi/ESP-NOW credentials
+├── esp01s_exterior/
+│   ├── esp01s_exterior.ino           # Outdoor sensors node firmware
+│   ├── config.h                      # Node configuration
+│   └── secrets.h                     # WiFi/ESP-NOW credentials
+├── data/
+│   └── weather_training_data.csv     # Sample ML training data format
+├── docs/
+│   ├── wiring_diagram.md             # Pin connections documentation
+│   └── api_setup.md                  # API registration instructions
+├── .gitignore
+└── README.md
+```
+
+## Hardware Pin Configuration - ESP32-S3 Central
+
+### SPI Bus (Shared for 3x ILI9341 Displays)
+- MOSI: GPIO 11
+- MISO: GPIO 13
+- SCK: GPIO 12
+- DC: GPIO 14
+- RST: GPIO 21
+- LED (Backlight): GPIO 47
+
+### Display Chip Select (Individual)
+- Display 1 CS: GPIO 10 (Top - Time/Indoor)
+- Display 2 CS: GPIO 9 (Middle - Weather/Forecast)
+- Display 3 CS: GPIO 46 (Bottom - Extended/Touch Control)
+
+### Touch Screen (XPT2046) - Shared SPI
+- T_CLK: GPIO 12 (shared with display SCK)
+- T_DIN: GPIO 11 (shared with display MOSI)
+- T_DO: GPIO 13 (shared with display MISO)
+- Touch 1 CS: GPIO 3
+- Touch 2 CS: GPIO 8
+- Touch 3 CS: GPIO 18
+- Touch 1 IRQ: GPIO 17
+- Touch 2 IRQ: GPIO 16
+- Touch 3 IRQ: GPIO 15
+
+### I2C Bus (Local Sensors)
+- SDA: GPIO 1
+- SCL: GPIO 2
+- BME680 Address: 0x76 or 0x77
+- MAX30102 Address: 0x57
+
+### SD Card Module (SPI)
+- SD_CS: GPIO 4
+- SD shares MOSI/MISO/SCK with displays
+
+## Hardware Pin Configuration - ESP-01S Interior Node
+- DHT22 Data: GPIO 2
+- Pull-up resistor: 4.7kΩ between DATA and VCC
+
+## Hardware Pin Configuration - ESP-01S Exterior Node
+- I2C SDA: GPIO 0
+- I2C SCL: GPIO 2
+- TCA9548A Address: 0x70 (A0=A1=A2=GND)
+- TCA9548A CH0: AHT20 (0x38) + BMP280 (0x76/0x77)
+- TCA9548A CH1: BH1750 (0x23 or 0x5C)
+
+## Communication Protocol
+- **Inter-node**: ESP-NOW (peer-to-peer, low latency)
+- **Central to Router**: WiFi for API calls
+- **Data format**: JSON struct via ESP-NOW
+
+## Required Libraries (Arduino Library Manager)
+
+### ESP32-S3 Central
+```
+TFT_eSPI                    # Display driver (requires User_Setup.h config)
+XPT2046_Touchscreen         # Touch input
+Adafruit BME680 Library     # Air quality sensor
+MAX30105                    # SparkFun, compatible with MAX30102
+ArduinoJson                 # JSON parsing for APIs
+HTTPClient                  # Built-in ESP32
+WiFi                        # Built-in ESP32
+SD                          # Built-in, SD card
+ESP32 AnalogWrite           # PWM for backlight
+TensorFlowLite_ESP32        # TinyML inference (optional, for advanced ML)
+```
+
+### ESP-01S Nodes
+```
+DHT sensor library          # Adafruit, for DHT22
+ESP8266WiFi                 # Built-in
+espnow                      # Built-in ESP8266
+Adafruit AHTX0              # AHT20 sensor
+Adafruit BMP280 Library     # Pressure sensor
+BH1750                      # Light sensor by Christopher Laws
+```
+
+## Weather API Integration
+
+### OpenWeatherMap (Primary)
+- Free tier: 1000 calls/day
+- Endpoint: Current weather + 5-day forecast
+- Required: API Key in secrets.h
+
+### Tomorrow.io (Secondary/Backup)
+- Free tier: 500 calls/day
+- Better minute-by-minute precipitation
+- Required: API Key in secrets.h
+
+## ML Weather Prediction Requirements
+
+### Data Collection (SD Card)
+- Log every 5 minutes: timestamp, temp_in, temp_out, humidity_in, humidity_out, pressure, light, iaq
+- CSV format for easy export
+- Minimum 2 weeks data before ML predictions become useful
+
+### Features for Prediction Model
+- Pressure trend (current vs -3h, -6h, -12h)
+- Temperature delta (indoor/outdoor)
+- Humidity trend
+- Light intensity pattern
+- Time of day, day of week, season
+
+### Prediction Outputs
+- Rain probability next 1h, 3h, 6h
+- Temperature trend (rising/stable/falling)
+- Weather condition (sunny, cloudy, rainy, foggy)
+
+## Code Style Guidelines
+- Use Arduino conventions (setup(), loop())
+- CamelCase for functions, UPPER_CASE for constants
+- Separate headers (.h) and implementation (.cpp)
+- Include comprehensive comments in Romanian or English
+- Error handling with Serial debug output
+- Non-blocking code (use millis(), avoid delay() in main loop)
+
+## Update Intervals
+- Local sensors (BME680, MAX30102): 1 minute
+- Remote nodes (ESP-NOW): 5 minutes
+- Weather API calls: 15-30 minutes (respect rate limits)
+- Display refresh: 1 second for time, 1 minute for sensor data
+- SD card logging: 5 minutes
+- ML prediction update: 1 hour
+
+## When Writing Code - Mandatory Steps
+1. Generate complete, compilable code for each node
+2. Create secrets_template.h with placeholder values
+3. Configure TFT_eSPI User_Setup.h with correct pins
+4. Run compilation check: `arduino-cli compile --fqbn esp32:esp32:esp32s3 ./esp32s3_central`
+5. Fix ALL errors before presenting final version
+6. Document any manual configuration steps in README.md
+7. Test ESP-NOW communication structure
+
+## Files to Generate
+1. All source code files per structure above
+2. secrets_template.h with clear instructions
+3. TFT_eSPI User_Setup.h configuration
+4. README.md with complete setup instructions
+5. wiring_diagram.md with pin tables
+6. api_setup.md with registration links
+
+## Testing Checklist
+- [ ] ESP32-S3 central compiles without errors
+- [ ] ESP-01S interior compiles without errors
+- [ ] ESP-01S exterior compiles without errors
+- [ ] All pin definitions match hardware plan
+- [ ] No library conflicts
+- [ ] WiFi credentials externalized to secrets.h
+- [ ] API keys externalized to secrets.h
+- [ ] ESP-NOW MAC addresses configurable

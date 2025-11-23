@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station - System Logs</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        #logs-viewer {
+            background-color: #0a0a12;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: var(--spacing-md);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            height: 500px;
+            overflow-y: auto;
+            color: var(--color-accent);
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            padding: 4px;
+            border-radius: 2px;
+        }
+
+        .log-entry.info { color: var(--color-info); }
+        .log-entry.warning { color: #ffc107; background-color: rgba(255, 193, 7, 0.05); }
+        .log-entry.error { color: var(--color-warning); background-color: rgba(255, 107, 107, 0.05); }
+        .log-entry.debug { color: var(--color-text-secondary); }
+
+        .log-timestamp { color: var(--color-text-secondary); font-size: 11px; }
+        .log-module { color: var(--color-accent); font-weight: 600; }
+        .log-message { margin-left: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <h1>📋 System Logs</h1>
+                <p class="subtitle">Real-time system monitoring</p>
+            </div>
+            <div class="header-right">
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">Dashboard</a>
+                    <a href="nodes.html" class="nav-link">Nodes</a>
+                    <a href="config.html" class="nav-link">Settings</a>
+                    <a href="logs.html" class="nav-link active">Logs</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Log Controls -->
+        <section class="section">
+            <h2>Controls</h2>
+            <div class="card">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Log Level Filter</label>
+                        <select class="form-select" id="log-level" onchange="filterLogs()">
+                            <option value="">All Levels</option>
+                            <option value="info">INFO</option>
+                            <option value="warning">WARNING</option>
+                            <option value="error">ERROR</option>
+                            <option value="debug">DEBUG</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Module Filter</label>
+                        <select class="form-select" id="log-module" onchange="filterLogs()">
+                            <option value="">All Modules</option>
+                            <option value="WiFi">WiFi</option>
+                            <option value="ESPNOW">ESP-NOW</option>
+                            <option value="SENSOR">Sensors</option>
+                            <option value="API">Weather API</option>
+                            <option value="ML">ML Prediction</option>
+                            <option value="DISPLAY">Display</option>
+                            <option value="SD">SD Card</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                        <input type="checkbox" id="auto-scroll" checked>
+                        <span>Auto-scroll to latest</span>
+                    </label>
+                </div>
+
+                <div class="button-group" style="margin-top: var(--spacing-md);">
+                    <button class="button button-secondary" onclick="downloadFullLog()">
+                        ⬇️ Download Full Log
+                    </button>
+                    <button class="button button-danger" onclick="clearLogs()">
+                        🗑️ Clear Log Buffer
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Log Viewer -->
+        <section class="section">
+            <h2>Live Log Stream</h2>
+            <div id="logs-viewer"></div>
+        </section>
+
+        <!-- Log Statistics -->
+        <section class="section">
+            <h2>📊 Log Statistics</h2>
+            <div class="grid grid-4">
+                <div class="card">
+                    <div class="card-label">Total Entries</div>
+                    <div class="card-value" id="log-total">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">INFO</div>
+                    <div class="card-value" id="log-info-count">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">WARNING</div>
+                    <div class="card-value" id="log-warning-count" style="color: #ffc107;">0</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">ERROR</div>
+                    <div class="card-value" id="log-error-count" style="color: var(--color-warning);">0</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Logs update in real-time via WebSocket | <a href="index.html">Back to Dashboard</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        let allLogs = [];
+        let logStats = { total: 0, info: 0, warning: 0, error: 0, debug: 0 };
+        const MAX_LOGS = 500;
+
+        // Initialize logs viewer
+        window.addEventListener('load', function() {
+            loadInitialLogs();
+            // Set up WebSocket listener for new logs
+            const originalOnMessage = ws?.onmessage;
+            if (ws) {
+                ws.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        if (message.type === 'log_entry') {
+                            addLogEntry(message.data);
+                        }
+                    } catch (e) { }
+                    if (originalOnMessage) originalOnMessage.call(this, event);
+                };
+            }
+        });
+
+        function loadInitialLogs() {
+            WeatherStationUI.apiCall('/api/logs?lines=500').then(data => {
+                if (data && data.logs) {
+                    allLogs = data.logs;
+                    displayLogs(allLogs);
+                    updateLogStats();
+                }
+            });
+        }
+
+        function addLogEntry(logEntry) {
+            allLogs.push(logEntry);
+            if (allLogs.length > MAX_LOGS) {
+                allLogs.shift();
+            }
+            displayLogs(getFilteredLogs());
+            updateLogStats();
+
+            // Auto-scroll if enabled
+            if (document.getElementById('auto-scroll').checked) {
+                const viewer = document.getElementById('logs-viewer');
+                viewer.scrollTop = viewer.scrollHeight;
+            }
+        }
+
+        function displayLogs(logs) {
+            const viewer = document.getElementById('logs-viewer');
+            viewer.innerHTML = '';
+
+            logs.forEach(log => {
+                const div = document.createElement('div');
+                div.className = `log-entry ${log.level.toLowerCase()}`;
+
+                const timestamp = new Date(log.timestamp).toLocaleTimeString();
+
+                div.innerHTML = `
+                    <span class="log-timestamp">[${timestamp}]</span>
+                    <span class="log-module">[${log.module}]</span>
+                    <span class="log-message">${escapeHtml(log.message)}</span>
+                `;
+
+                viewer.appendChild(div);
+            });
+        }
+
+        function filterLogs() {
+            const filtered = getFilteredLogs();
+            displayLogs(filtered);
+        }
+
+        function getFilteredLogs() {
+            const levelFilter = document.getElementById('log-level').value;
+            const moduleFilter = document.getElementById('log-module').value;
+
+            return allLogs.filter(log => {
+                const levelMatch = !levelFilter || log.level.toLowerCase() === levelFilter.toLowerCase();
+                const moduleMatch = !moduleFilter || log.module === moduleFilter;
+                return levelMatch && moduleMatch;
+            });
+        }
+
+        function updateLogStats() {
+            logStats = { total: 0, info: 0, warning: 0, error: 0, debug: 0 };
+
+            allLogs.forEach(log => {
+                logStats.total++;
+                const level = log.level.toLowerCase();
+                if (level === 'info') logStats.info++;
+                else if (level === 'warning') logStats.warning++;
+                else if (level === 'error') logStats.error++;
+                else if (level === 'debug') logStats.debug++;
+            });
+
+            document.getElementById('log-total').textContent = logStats.total;
+            document.getElementById('log-info-count').textContent = logStats.info;
+            document.getElementById('log-warning-count').textContent = logStats.warning;
+            document.getElementById('log-error-count').textContent = logStats.error;
+        }
+
+        function downloadFullLog() {
+            WeatherStationUI.apiCall('/api/logs/download').then(() => {
+                WeatherStationUI.showAlert('Log download started', 'success');
+            });
+        }
+
+        function clearLogs() {
+            if (confirm('Clear all logs from buffer?')) {
+                allLogs = [];
+                displayLogs([]);
+                logStats = { total: 0, info: 0, warning: 0, error: 0, debug: 0 };
+                updateLogStats();
+                WeatherStationUI.showAlert('Log buffer cleared', 'success');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

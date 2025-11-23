@@ -1,0 +1,68 @@
+# Secrets and Credentials
+secrets.h
+*.key
+*.pem
+*.crt
+
+# Arduino IDE
+.DS_Store
+.vscode/
+*.code-workspace
+
+# Build artifacts
+build/
+dist/
+*.o
+*.elf
+*.hex
+*.bin
+
+# Compiled libraries
+*.a
+*.lib
+*.so
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# OS files
+.DS_Store
+Thumbs.db
+.directory
+*.tmp
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.backup
+*.bak
+*.temp
+*.old
+
+# Documentation backups
+docs/*.backup
+
+# Data files (optional - keep training data)
+# data/*.csv
+data/*.log
+
+# Serial monitor logs
+*.log
+
+# Configuration backups
+*.conf.backup
+*.config.backup

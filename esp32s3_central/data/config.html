@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station - Configuration</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <h1>⚙️ System Configuration</h1>
+                <p class="subtitle">Manage all system settings</p>
+            </div>
+            <div class="header-right">
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">Dashboard</a>
+                    <a href="nodes.html" class="nav-link">Nodes</a>
+                    <a href="config.html" class="nav-link active">Settings</a>
+                    <a href="logs.html" class="nav-link">Logs</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- WiFi Configuration -->
+        <section class="section">
+            <h2>📡 WiFi Settings</h2>
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="form-group">
+                        <label class="form-label">Current Network</label>
+                        <input type="text" class="form-input" id="current-ssid" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">IP Address</label>
+                        <input type="text" class="form-input" id="current-ip" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MAC Address</label>
+                        <input type="text" class="form-input" id="current-mac" readonly>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="form-group">
+                        <label class="form-label">Select Network</label>
+                        <div class="button-group">
+                            <button class="button button-secondary" onclick="WeatherStationUI.scanWiFiNetworks()">
+                                📡 Scan Networks
+                            </button>
+                        </div>
+                        <select class="form-select" id="wifi-ssid-select">
+                            <option value="">-- Select network --</option>
+                        </select>
+                        <p class="form-help">Click "Scan Networks" to refresh list</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom: var(--spacing-md);">WiFi Credentials</h3>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">SSID</label>
+                        <input type="text" class="form-input" id="wifi-ssid" placeholder="Network name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <div style="position: relative;">
+                            <input type="password" class="form-input" id="wifi-password" placeholder="Network password">
+                            <button class="button button-secondary" style="position: absolute; right: 5px; top: 5px; padding: 4px 8px;"
+                                onclick="WeatherStationUI.togglePasswordVisibility('wifi-password')">👁️</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-md); cursor: pointer;">
+                        <input type="checkbox" id="wifi-static-ip" onchange="toggleStaticIP()">
+                        <span>Use Static IP</span>
+                    </label>
+                </div>
+
+                <div id="static-ip-form" style="display: none;">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">IP Address</label>
+                            <input type="text" class="form-input" id="wifi-ip" placeholder="192.168.1.100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Gateway</label>
+                            <input type="text" class="form-input" id="wifi-gateway" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Subnet Mask</label>
+                            <input type="text" class="form-input" id="wifi-subnet" placeholder="255.255.255.0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">DNS Server</label>
+                            <input type="text" class="form-input" id="wifi-dns" placeholder="8.8.8.8">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="button button-primary" onclick="WeatherStationUI.saveWiFiConfig()">
+                    💾 Save WiFi Configuration
+                </button>
+            </div>
+        </section>
+
+        <!-- Weather API Configuration -->
+        <section class="section">
+            <h2>🌦️ Weather API Configuration</h2>
+            <div class="card">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">OpenWeatherMap API Key</label>
+                        <div style="position: relative;">
+                            <input type="password" class="form-input" id="api-owm-key" placeholder="Your API key">
+                            <button class="button button-secondary" style="position: absolute; right: 5px; top: 5px; padding: 4px 8px;"
+                                onclick="WeatherStationUI.togglePasswordVisibility('api-owm-key')">👁️</button>
+                        </div>
+                        <p class="form-help">Get free key at <a href="#" style="color: var(--color-accent);">openweathermap.org</a></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Tomorrow.io API Key</label>
+                        <div style="position: relative;">
+                            <input type="password" class="form-input" id="api-tomorrow-key" placeholder="Your API key">
+                            <button class="button button-secondary" style="position: absolute; right: 5px; top: 5px; padding: 4px 8px;"
+                                onclick="WeatherStationUI.togglePasswordVisibility('api-tomorrow-key')">👁️</button>
+                        </div>
+                        <p class="form-help">Get free key at <a href="#" style="color: var(--color-accent);">tomorrow.io</a></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="number" step="0.0001" class="form-input" id="api-latitude" placeholder="44.4268">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="number" step="0.0001" class="form-input" id="api-longitude" placeholder="26.1025">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="button button-secondary" onclick="WeatherStationUI.testAPIConnection()">
+                        🧪 Test Connection
+                    </button>
+                    <button class="button button-primary" onclick="WeatherStationUI.saveAPIConfig()">
+                        💾 Save API Settings
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Display Settings -->
+        <section class="section">
+            <h2>🎨 Display Settings</h2>
+            <div class="card">
+                <div class="form-group">
+                    <label class="form-label">Backlight Brightness</label>
+                    <input type="range" class="form-input" id="brightness-slider" min="0" max="100" value="80"
+                        oninput="updateBrightness(this.value)">
+                    <p class="form-help">Current: <span id="brightness-value">80</span>%</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Theme</label>
+                    <select class="form-select" id="theme-select">
+                        <option value="dark">Dark Mode</option>
+                        <option value="light">Light Mode</option>
+                        <option value="auto">Auto (based on time)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Display Timeout (minutes)</label>
+                    <input type="number" min="1" max="60" class="form-input" id="timeout-minutes" value="10">
+                </div>
+
+                <button class="button button-primary" onclick="saveDisplaySettings()">
+                    💾 Save Display Settings
+                </button>
+            </div>
+        </section>
+
+        <!-- Data Logging -->
+        <section class="section">
+            <h2>📊 Data Logging</h2>
+            <div class="card">
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-md); cursor: pointer;">
+                        <input type="checkbox" id="logging-enabled" checked>
+                        <span>Enable SD Card Logging</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Logging Interval</label>
+                    <select class="form-select" id="logging-interval">
+                        <option value="1">1 minute</option>
+                        <option value="5" selected>5 minutes</option>
+                        <option value="15">15 minutes</option>
+                        <option value="30">30 minutes</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">SD Card Usage</label>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="sd-usage-bar" style="width: 35%"></div>
+                    </div>
+                    <p class="form-help"><span id="sd-usage-text">3.5 GB / 8 GB used</span></p>
+                </div>
+
+                <div class="button-group">
+                    <button class="button button-secondary" onclick="WeatherStationUI.downloadLogs()">
+                        ⬇️ Download Logs
+                    </button>
+                    <button class="button button-danger" onclick="clearOldLogs()">
+                        🗑️ Clear Old Logs
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- OTA Firmware Update -->
+        <section class="section">
+            <h2>🔄 Firmware Update</h2>
+            <div class="card">
+                <div class="form-group">
+                    <label class="form-label">Current Version</label>
+                    <input type="text" class="form-input" id="firmware-version" value="v1.0.0" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Upload Firmware (.bin file)</label>
+                    <input type="file" class="form-input" id="firmware-file" accept=".bin">
+                    <p class="form-help">Select compiled .bin file from Arduino IDE</p>
+                </div>
+
+                <div id="upload-progress" class="progress-bar" style="display: none;">
+                    <div class="progress-bar-fill" style="width: 0%"></div>
+                </div>
+
+                <button class="button button-primary" onclick="WeatherStationUI.uploadFirmware()">
+                    📤 Upload & Update
+                </button>
+            </div>
+        </section>
+
+        <!-- System Management -->
+        <section class="section">
+            <h2>🛠️ System Management</h2>
+            <div class="card">
+                <p style="margin-bottom: var(--spacing-lg); color: var(--color-text-secondary);">
+                    Use these options carefully. They may disrupt the system operation.
+                </p>
+
+                <div class="button-group">
+                    <button class="button button-secondary" onclick="WeatherStationUI.restartSystem()">
+                        🔄 Restart System
+                    </button>
+                    <button class="button button-danger" onclick="WeatherStationUI.factoryReset()">
+                        ⚠️ Factory Reset
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Configuration changes saved to LittleFS | <a href="index.html">Back to Dashboard</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        function toggleStaticIP() {
+            const staticIPForm = document.getElementById('static-ip-form');
+            const checkbox = document.getElementById('wifi-static-ip');
+            staticIPForm.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        function updateBrightness(value) {
+            document.getElementById('brightness-value').textContent = value;
+            // Send to backend
+            WeatherStationUI.apiCall('/config/display', 'POST', { brightness: parseInt(value) });
+        }
+
+        function saveDisplaySettings() {
+            const config = {
+                brightness: parseInt(document.getElementById('brightness-slider').value),
+                theme: document.getElementById('theme-select').value,
+                timeout_minutes: parseInt(document.getElementById('timeout-minutes').value)
+            };
+
+            WeatherStationUI.apiCall('/config/display', 'POST', config).then(result => {
+                if (result && result.success) {
+                    WeatherStationUI.showAlert('Display settings saved', 'success');
+                }
+            });
+        }
+
+        function clearOldLogs() {
+            if (confirm('Delete logs older than 30 days?')) {
+                WeatherStationUI.apiCall('/logs/clear-old', 'POST').then(result => {
+                    if (result && result.success) {
+                        WeatherStationUI.showAlert('Old logs cleared', 'success');
+                    }
+                });
+            }
+        }
+
+        // Load initial configuration
+        window.addEventListener('load', function() {
+            WeatherStationUI.apiCall('/config/get').then(config => {
+                if (config) {
+                    document.getElementById('api-latitude').value = config.api?.latitude || '';
+                    document.getElementById('api-longitude').value = config.api?.longitude || '';
+                    document.getElementById('brightness-slider').value = config.display?.brightness || 80;
+                    document.getElementById('brightness-value').textContent = config.display?.brightness || 80;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command:*)",
+      "Bash(dir:*)",
+      "Bash(/c/arduino-cli/arduino-cli compile:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

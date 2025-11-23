@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>🌦️ Weather Station</h1>
+                <p id="last-update" class="subtitle">Live Dashboard</p>
+            </div>
+            <div class="header-right">
+                <div class="status-indicator" id="system-status">
+                    <span class="status-dot online"></span>
+                    <span>Online</span>
+                </div>
+                <nav class="nav">
+                    <a href="index.html" class="nav-link active">Dashboard</a>
+                    <a href="nodes.html" class="nav-link">Nodes</a>
+                    <a href="config.html" class="nav-link">Settings</a>
+                    <a href="logs.html" class="nav-link">Logs</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- System Status -->
+        <section class="section">
+            <h2>System Status</h2>
+            <div class="grid grid-4">
+                <div class="card">
+                    <div class="card-label">Uptime</div>
+                    <div class="card-value" id="uptime">--:--:--</div>
+                    <div class="card-unit">hh:mm:ss</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Free Heap</div>
+                    <div class="card-value" id="heap">-- KB</div>
+                    <div class="card-unit">RAM Available</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">WiFi Signal</div>
+                    <div class="card-value" id="wifi-signal">-- dBm</div>
+                    <div class="card-unit">Signal Strength</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Temperature</div>
+                    <div class="card-value" id="cpu-temp">-- °C</div>
+                    <div class="card-unit">Internal Sensor</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Indoor Sensors -->
+        <section class="section">
+            <h2>🏠 Indoor Environment</h2>
+            <div class="grid grid-3">
+                <!-- Room 1 -->
+                <div class="card">
+                    <div class="card-header">Main Room (BME680)</div>
+                    <div class="sensor-reading">
+                        <div class="reading-item">
+                            <span class="reading-label">Temperature</span>
+                            <span class="reading-value" id="temp-room1">-- °C</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Humidity</span>
+                            <span class="reading-value" id="humidity-room1">-- %</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Pressure</span>
+                            <span class="reading-value" id="pressure-room1">-- hPa</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Air Quality (IAQ)</span>
+                            <span class="reading-value" id="iaq-room1">-- (Good)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Room 2 (from Interior node) -->
+                <div class="card">
+                    <div class="card-header">Secondary Room (DHT22)</div>
+                    <div class="sensor-reading">
+                        <div class="reading-item">
+                            <span class="reading-label">Temperature</span>
+                            <span class="reading-value" id="temp-room2">-- °C</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Humidity</span>
+                            <span class="reading-value" id="humidity-room2">-- %</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Status</span>
+                            <span class="reading-value status-badge" id="status-room2">--</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Last Update</span>
+                            <span class="reading-value small" id="update-room2">-- min ago</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Heart Rate (MAX30102) -->
+                <div class="card">
+                    <div class="card-header">Heart Rate (MAX30102)</div>
+                    <div class="sensor-reading">
+                        <div class="reading-item">
+                            <span class="reading-label">Heart Rate</span>
+                            <span class="reading-value" id="heart-rate">-- BPM</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">SpO₂</span>
+                            <span class="reading-value" id="spo2">-- %</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Status</span>
+                            <span class="reading-value small" id="hr-status">No data</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Outdoor Sensors -->
+        <section class="section">
+            <h2>🌍 Outdoor Environment</h2>
+            <div class="grid grid-2">
+                <!-- Outdoor sensors -->
+                <div class="card">
+                    <div class="card-header">Weather (Exterior Node)</div>
+                    <div class="sensor-reading">
+                        <div class="reading-item">
+                            <span class="reading-label">Temperature</span>
+                            <span class="reading-value" id="temp-outdoor">-- °C</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Humidity</span>
+                            <span class="reading-value" id="humidity-outdoor">-- %</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Pressure</span>
+                            <span class="reading-value" id="pressure-outdoor">-- hPa</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Pressure Trend</span>
+                            <span class="reading-value" id="pressure-trend">→ Stable</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Light & Weather API -->
+                <div class="card">
+                    <div class="card-header">Weather API & Light</div>
+                    <div class="sensor-reading">
+                        <div class="reading-item">
+                            <span class="reading-label">Ambient Light</span>
+                            <span class="reading-value" id="light-outdoor">-- lux</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Outdoor Temp (API)</span>
+                            <span class="reading-value" id="api-temp">-- °C</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Condition</span>
+                            <span class="reading-value" id="api-condition">--</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Wind Speed</span>
+                            <span class="reading-value" id="api-wind">-- m/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ML Predictions -->
+        <section class="section">
+            <h2>🤖 ML Weather Prediction</h2>
+            <div class="grid grid-3">
+                <div class="card">
+                    <div class="card-header">Rain Probability</div>
+                    <div class="prediction-large" id="rain-prob">0%</div>
+                    <div class="prediction-bar">
+                        <div class="prediction-bar-fill" id="rain-prob-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Temperature Trend</div>
+                    <div class="prediction-large trend" id="temp-trend">→ STABLE</div>
+                    <div class="prediction-unit">Last 1 hour analysis</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">General Condition</div>
+                    <div class="prediction-large" id="general-condition">--</div>
+                    <div class="prediction-unit">Based on all features</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5-Day Forecast -->
+        <section class="section">
+            <h2>📅 5-Day Forecast</h2>
+            <div class="forecast-container" id="forecast-container">
+                <!-- Filled by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Weather Station v1.0 | Last update: <span id="footer-time">--:--:--</span></p>
+            <p><a href="config.html">⚙️ Configure System</a> | <a href="logs.html">📋 View Logs</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

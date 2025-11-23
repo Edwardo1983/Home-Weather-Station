@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station - Node Status</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-left">
+                <h1>📡 Remote Nodes Status</h1>
+                <p class="subtitle">Monitor ESP-NOW devices</p>
+            </div>
+            <div class="header-right">
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">Dashboard</a>
+                    <a href="nodes.html" class="nav-link active">Nodes</a>
+                    <a href="config.html" class="nav-link">Settings</a>
+                    <a href="logs.html" class="nav-link">Logs</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Nodes Overview -->
+        <section class="section">
+            <h2>Connected Nodes</h2>
+            <div id="nodes-container" class="grid grid-2">
+                <!-- Populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Nodes Table -->
+        <section class="section">
+            <h2>Detailed Node Information</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Node Name</th>
+                            <th>MAC Address</th>
+                            <th>Status</th>
+                            <th>Last Packet</th>
+                            <th>RSSI (dBm)</th>
+                            <th>Uptime</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nodes-table-body">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--color-text-secondary);">
+                                Loading node data...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ESP-NOW Configuration -->
+        <section class="section">
+            <h2>⚙️ ESP-NOW Configuration</h2>
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3 style="margin-bottom: var(--spacing-md);">Add New Node</h3>
+                    <div class="form-group">
+                        <label class="form-label">Node Name</label>
+                        <input type="text" class="form-input" id="new-node-name" placeholder="e.g., Kitchen">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MAC Address</label>
+                        <input type="text" class="form-input" id="new-node-mac" placeholder="AA:BB:CC:DD:EE:FF">
+                        <p class="form-help">Format: XX:XX:XX:XX:XX:XX</p>
+                    </div>
+                    <button class="button button-primary" onclick="addNewNode()">
+                        ➕ Add Node
+                    </button>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: var(--spacing-md);">Node Discovery</h3>
+                    <p style="margin-bottom: var(--spacing-md); color: var(--color-text-secondary); font-size: 12px;">
+                        Scan for nearby ESP-NOW devices (requires them to be in active/discovery mode)
+                    </p>
+                    <button class="button button-secondary" onclick="scanESPNowDevices()">
+                        🔍 Scan for Devices
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Node Connectivity History -->
+        <section class="section">
+            <h2>📊 Connectivity History (24h)</h2>
+            <div class="card">
+                <p id="history-empty" style="text-align: center; color: var(--color-text-secondary);">
+                    No history data yet. Nodes must be online and reporting for 24+ hours.
+                </p>
+                <div id="history-container" class="grid grid-2" style="display: none;">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Alerts -->
+        <section class="section">
+            <h2>⚠️ Alerts</h2>
+            <div id="alerts-container">
+                <div class="alert alert-info">
+                    ℹ️ All nodes are online and communicating normally.
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Node status updates automatically | <a href="index.html">Back to Dashboard</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Load nodes data on page load
+        window.addEventListener('load', function() {
+            loadNodesData();
+            setInterval(loadNodesData, 10000); // Refresh every 10 seconds
+        });
+
+        function loadNodesData() {
+            WeatherStationUI.apiCall('/api/nodes').then(data => {
+                if (!data || !data.nodes) return;
+
+                // Update cards
+                const container = document.getElementById('nodes-container');
+                container.innerHTML = '';
+
+                data.nodes.forEach(node => {
+                    const status = node.online ? 'Online' : 'Offline';
+                    const statusClass = node.online ? 'status-badge' : 'status-badge offline';
+                    const minutesAgo = Math.floor((Date.now() - node.last_packet) / 60000);
+
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">${node.name}</div>
+                        <div class="sensor-reading">
+                            <div class="reading-item">
+                                <span class="reading-label">Status</span>
+                                <span class="${statusClass}">${status}</span>
+                            </div>
+                            <div class="reading-item">
+                                <span class="reading-label">Signal (RSSI)</span>
+                                <span class="reading-value">${node.rssi} dBm</span>
+                            </div>
+                            <div class="reading-item">
+                                <span class="reading-label">Last Packet</span>
+                                <span class="reading-value small">${minutesAgo} min ago</span>
+                            </div>
+                            <div class="reading-item">
+                                <span class="reading-label">MAC</span>
+                                <span class="reading-value small" style="font-size: 10px; font-family: monospace;">${node.mac}</span>
+                            </div>
+                        </div>
+                        <div class="button-group" style="margin-top: var(--spacing-md);">
+                            <button class="button button-secondary" onclick="pingNode('${node.mac}')">
+                                📡 Ping
+                            </button>
+                            <button class="button button-danger" onclick="removeNode('${node.mac}')">
+                                🗑️ Remove
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                // Update table
+                const tbody = document.getElementById('nodes-table-body');
+                tbody.innerHTML = '';
+
+                data.nodes.forEach(node => {
+                    const status = node.online ? 'Online' : 'Offline';
+                    const statusClass = node.online ? 'status-badge' : 'status-badge offline';
+                    const minutesAgo = Math.floor((Date.now() - node.last_packet) / 60000);
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${node.name}</td>
+                        <td style="font-family: monospace; font-size: 12px;">${node.mac}</td>
+                        <td><span class="${statusClass}">${status}</span></td>
+                        <td>${minutesAgo} min ago</td>
+                        <td>${node.rssi} dBm</td>
+                        <td>${node.uptime || '--'}</td>
+                        <td>
+                            <button class="button button-secondary" onclick="pingNode('${node.mac}')">Ping</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Check for alerts
+                updateAlerts(data.nodes);
+            });
+        }
+
+        function updateAlerts(nodes) {
+            const alertsContainer = document.getElementById('alerts-container');
+            const now = Date.now();
+            let alerts = [];
+
+            nodes.forEach(node => {
+                const minutesSinceLastPacket = (now - node.last_packet) / 60000;
+
+                if (minutesSinceLastPacket > 15) {
+                    alerts.push(`⚠️ Node "${node.name}" offline for ${Math.floor(minutesSinceLastPacket)} minutes`);
+                }
+            });
+
+            if (alerts.length === 0) {
+                alertsContainer.innerHTML = '<div class="alert alert-success">✓ All nodes are online and communicating normally.</div>';
+            } else {
+                alertsContainer.innerHTML = alerts.map(alert =>
+                    `<div class="alert alert-warning">${alert}</div>`
+                ).join('');
+            }
+        }
+
+        function pingNode(mac) {
+            WeatherStationUI.apiCall('/api/nodes/ping', 'POST', { mac }).then(result => {
+                if (result && result.success) {
+                    WeatherStationUI.showAlert(`Ping sent to ${mac}`, 'success');
+                }
+            });
+        }
+
+        function removeNode(mac) {
+            if (confirm(`Remove node ${mac}?`)) {
+                WeatherStationUI.apiCall('/api/nodes/remove', 'POST', { mac }).then(result => {
+                    if (result && result.success) {
+                        WeatherStationUI.showAlert('Node removed', 'success');
+                        loadNodesData();
+                    }
+                });
+            }
+        }
+
+        function addNewNode() {
+            const name = document.getElementById('new-node-name').value;
+            const mac = document.getElementById('new-node-mac').value;
+
+            if (!name || !mac) {
+                WeatherStationUI.showAlert('Please fill in all fields', 'error');
+                return;
+            }
+
+            WeatherStationUI.apiCall('/api/nodes/add', 'POST', { name, mac }).then(result => {
+                if (result && result.success) {
+                    WeatherStationUI.showAlert('Node added successfully', 'success');
+                    document.getElementById('new-node-name').value = '';
+                    document.getElementById('new-node-mac').value = '';
+                    loadNodesData();
+                } else {
+                    WeatherStationUI.showAlert('Failed to add node', 'error');
+                }
+            });
+        }
+
+        function scanESPNowDevices() {
+            WeatherStationUI.apiCall('/api/nodes/scan', 'POST').then(result => {
+                if (result && result.devices) {
+                    WeatherStationUI.showAlert(`Found ${result.devices.length} device(s)`, 'success');
+                    // Could populate a list of discovered devices here
+                } else {
+                    WeatherStationUI.showAlert('No devices found', 'info');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
